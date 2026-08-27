@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useProgressStore } from "@/lib/state/progress-store";
 import { useHydrated } from "@/lib/state/useHydrated";
+import { isSupabaseConfigured } from "@/lib/auth/config";
 import { getLevelProgress } from "@/lib/domain/level";
 import { getSkillDef } from "@/lib/domain/skills-catalog";
 import { CATEGORY_META, DIFFICULTY_META } from "@/lib/domain/category-catalog";
@@ -35,6 +36,11 @@ export function HomeView({ quests }: { quests: QuestSummary[] }) {
   }
 
   if (!onboarded) {
+    // Full ModeはFullModeSyncのサーバー同期完了(hydrateFromServer)を待つ。
+    // ログイン済みである前提はレイアウト側(app/(app)/layout.tsx)のリダイレクトで保証済み。
+    if (isSupabaseConfigured()) {
+      return <div className="text-sm text-text-muted">読み込み中...</div>;
+    }
     return <OnboardingCard onStart={(name) => { setDisplayName(name); completeOnboarding(); }} />;
   }
 

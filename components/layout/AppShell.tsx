@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { signOutAction } from "@/app/auth/actions";
 
 const NAV_ITEMS = [
   { href: "/home", label: "Home", emoji: "🏠" },
@@ -13,7 +14,18 @@ const NAV_ITEMS = [
   { href: "/profile", label: "Profile", emoji: "👤" },
 ];
 
-export function AppShell({ children }: { children: ReactNode }) {
+export interface AuthUserSummary {
+  email: string;
+  emailConfirmed: boolean;
+}
+
+export function AppShell({
+  children,
+  authUser = null,
+}: {
+  children: ReactNode;
+  authUser?: AuthUserSummary | null;
+}) {
   const pathname = usePathname();
 
   return (
@@ -42,7 +54,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div className="px-5 py-4 text-xs text-text-muted">Demo Mode（ローカル保存）</div>
+        <div className="border-t border-border px-5 py-4 text-xs text-text-muted">
+          {authUser ? (
+            <div className="flex flex-col gap-2">
+              <span className="truncate text-text-secondary" title={authUser.email}>
+                {authUser.email}
+              </span>
+              <form action={signOutAction}>
+                <button type="submit" className="text-left hover:text-text-primary">
+                  ログアウト
+                </button>
+              </form>
+            </div>
+          ) : (
+            "Demo Mode（ローカル保存）"
+          )}
+        </div>
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
@@ -51,6 +78,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             ⚔️ Data Engineer Quest
           </Link>
         </header>
+        {authUser && !authUser.emailConfirmed ? (
+          <div className="border-b border-warning/30 bg-warning/10 px-4 py-2 text-center text-xs text-warning">
+            メールアドレスが未確認です。届いた確認メールのリンクを開くと、進捗の保存など全ての機能が使えるようになります。
+          </div>
+        ) : null}
         <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">{children}</main>
         <nav className="flex items-center justify-around border-t border-border bg-bg-elevated px-2 py-2 sm:hidden">
           {NAV_ITEMS.map((item) => {

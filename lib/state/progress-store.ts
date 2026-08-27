@@ -31,7 +31,18 @@ export interface ConfidenceHistoryEntry {
   recordedAt: string;
 }
 
+interface ConfidenceInput {
+  questId: string;
+  skillIds: string[];
+  attemptCount: number;
+  hintsUsed: number;
+  confidenceBefore?: ConfidenceLevel;
+  confidenceAfter?: ConfidenceLevel;
+}
+
 interface ProgressStoreState {
+  /** "full"はFullModeSync（app/(app)/layout.tsx）がサーバーからhydrateした後にのみ設定される */
+  mode: "demo" | "full";
   displayName: string;
   onboarded: boolean;
   progress: QuestCompletionState;
@@ -52,13 +63,33 @@ interface ProgressStoreState {
     confidenceBefore?: ConfidenceLevel;
     confidenceAfter?: ConfidenceLevel;
   }) => QuestCompletionResult;
+  /** Full Mode専用: Server Actionで計算済みの結果をローカルstateへ反映する（再計算しない）。 */
+  applyServerCompletionResult: (input: ConfidenceInput, result: QuestCompletionResult) => void;
+  /** Full Mode専用: ページロード時にサーバーの状態でstoreを上書きする。 */
+  hydrateFromServer: (snapshot: {
+    displayName: string;
+    progress: QuestCompletionState;
+    questAttempts: Record<string, QuestAttemptRecord>;
+    confidenceHistory: ConfidenceHistoryEntry[];
+  }) => void;
   isQuestCleared: (questId: string) => boolean;
   resetAll: () => void;
+}
+
+function buildConfidenceEntries(input: ConfidenceInput, now: Date): ConfidenceHistoryEntry[] {
+  if (input.confidenceAfter === undefined) return [];
+  return input.skillIds.map((skillId) => ({
+    skillId,
+    questId: input.questId,
+    level: input.confidenceAfter as ConfidenceLevel,
+    recordedAt: now.toISOString(),
+  }));
 }
 
 export const useProgressStore = create<ProgressStoreState>()(
   persist(
     (set, get) => ({
+      mode: "demo",
       displayName: "",
       onboarded: false,
       progress: createInitialProgressState(),
@@ -91,16 +122,6 @@ export const useProgressStore = create<ProgressStoreState>()(
           now,
         });
 
-        const confidenceEntries: ConfidenceHistoryEntry[] =
-          input.confidenceAfter !== undefined
-            ? input.skillIds.map((skillId) => ({
-                skillId,
-                questId: input.questId,
-                level: input.confidenceAfter as ConfidenceLevel,
-                recordedAt: now.toISOString(),
-              }))
-            : [];
-
         set((state) => ({
           progress: result.state,
           questAttempts: {
@@ -114,14 +135,44 @@ export const useProgressStore = create<ProgressStoreState>()(
               clearedAt: now.toISOString(),
             },
           },
-          confidenceHistory: [...state.confidenceHistory, ...confidenceEntries],
+          confidenceHistory: [...state.confidenceHistory, ...buildConfidenceEntries(input, now)],
         }));
 
         return result;
       },
 
+      applyServerCompletionResult: (input, result) => {
+        const now = new Date();
+        set((state) => ({
+          progress: result.state,
+          questAttempts: {
+            ...state.questAttempts,
+            [input.questId]: {
+              status: "cleared",
+              attemptCount: input.attemptCount,
+              hintsUsed: input.hintsUsed,
+              confidenceBefore: input.confidenceBefore,
+              confidenceAfter: input.confidenceAfter,
+              clearedAt: now.toISOString(),
+            },
+          },
+          confidenceHistory: [...state.confidenceHistory, ...buildConfidenceEntries(input, now)],
+        }));
+      },
+
+      hydrateFromServer: (snapshot) =>
+        set({
+          mode: "full",
+          onboarded: true,
+          displayName: snapshot.displayName,
+          progress: snapshot.progress,
+          questAttempts: snapshot.questAttempts,
+          confidenceHistory: snapshot.confidenceHistory,
+        }),
+
       resetAll: () =>
         set({
+          mode: "demo",
           displayName: "",
           onboarded: false,
           progress: createInitialProgressState(),

@@ -7,6 +7,8 @@ import { useSqlSandbox } from "@/lib/sql-sandbox/useSqlSandbox";
 import { evaluateSqlSubmission } from "@/lib/sql-sandbox/evaluateSubmission";
 import { compareChoice } from "@/lib/domain/grading";
 import { useProgressStore } from "@/lib/state/progress-store";
+import { isSupabaseConfigured } from "@/lib/auth/config";
+import { completeQuestAction } from "@/app/(app)/actions";
 import type { QuestCompletionResult } from "@/lib/domain/progress-engine";
 import type { ConfidenceLevel } from "@/lib/domain/confidence";
 import { getSkillDef } from "@/lib/domain/skills-catalog";
@@ -39,8 +41,10 @@ export function QuestRunner({ quest, nextQuestId }: { quest: Quest; nextQuestId?
   const sandbox = useSqlSandbox(seedSql);
 
   const completeQuest = useProgressStore((s) => s.completeQuest);
+  const applyServerCompletionResult = useProgressStore((s) => s.applyServerCompletionResult);
 
   const [phase, setPhase] = useState<Phase>("working");
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [code, setCode] = useState(quest.starterSql ?? "");
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [attemptCount, setAttemptCount] = useState(0);
@@ -90,8 +94,11 @@ export function QuestRunner({ quest, nextQuestId }: { quest: Quest; nextQuestId?
     setSubmitting(false);
   };
 
-  const handleFinishWrapup = () => {
-    const result = completeQuest({
+  const [finishing, setFinishing] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
+
+  const handleFinishWrapup = async () => {
+    const baseInput = {
       questId: quest.id,
       questCategory: quest.category,
       skillIds: quest.skills,
@@ -102,7 +109,25 @@ export function QuestRunner({ quest, nextQuestId }: { quest: Quest; nextQuestId?
       explainedWhy: reflection.trim().length > 0,
       confidenceBefore,
       confidenceAfter,
-    });
+    };
+
+    if (isSupabaseConfigured()) {
+      setFinishing(true);
+      setFinishError(null);
+      try {
+        const result = await completeQuestAction({ ...baseInput, idempotencyKey });
+        applyServerCompletionResult(baseInput, result);
+        setCompletion(result);
+        setPhase("summary");
+      } catch (err) {
+        setFinishError(err instanceof Error ? err.message : "保存に失敗しました。もう一度お試しください。");
+      } finally {
+        setFinishing(false);
+      }
+      return;
+    }
+
+    const result = completeQuest(baseInput);
     setCompletion(result);
     setPhase("summary");
   };
@@ -254,8 +279,10 @@ export function QuestRunner({ quest, nextQuestId }: { quest: Quest; nextQuestId?
             onChange={setConfidenceAfter}
           />
 
-          <Button className="mt-5" onClick={handleFinishWrapup}>
-            完了する
+          {finishError ? <p className="mb-3 text-xs text-danger">{finishError}</p> : null}
+
+          <Button className="mt-5" onClick={handleFinishWrapup} disabled={finishing}>
+            {finishing ? "保存中..." : "完了する"}
           </Button>
         </Card>
       )}

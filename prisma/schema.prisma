@@ -25,6 +25,10 @@ model Profile {
   displayName  String    @map("display_name")
   careerRank   String    @default("rookie") @map("career_rank")
   onboardedAt  DateTime? @map("onboarded_at")
+  totalXp      Int       @default(0) @map("total_xp")
+  /** AchievementStats（lib/domain/achievements.ts）のスナップショット。
+      集計用の非正規化キャッシュであり、真実の記録はquest_attempts等の履歴テーブル側にある。 */
+  achievementStats Json  @default("{}") @map("achievement_stats")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
