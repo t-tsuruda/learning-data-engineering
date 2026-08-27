@@ -18,7 +18,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "prisma studio",
-    "postinstall": "node scripts/copy-vendor-assets.mjs"
+    "postinstall": "prisma generate && node scripts/copy-vendor-assets.mjs"
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "1.33.1-dev57.0",
