@@ -90,6 +90,15 @@ interface ProgressRepository {
 4. `lib/db/index.ts`の`getRepository()`が`DATABASE_URL`の有無で自動的にPrisma実装を返すようになる（実装済み・切替コード不要）
 5. Supabase AuthのRLSポリシーを適用（`prisma/migrations`内のSQLに含む）
 
+**開発環境固有の制約**: Claude Codeの開発コンテナはネットワークポリシー上、Supabaseへの接続
+（Postgresへの生TCP接続・`*.supabase.co`へのHTTPS接続とも）ができない。そのためマイグレーションSQL
+（`prisma/migrations/*/migration.sql`、テーブル作成とRLSポリシーの2本）はDB接続不要な
+`prisma migrate diff --from-empty --to-schema` で事前生成し、リポジトリにコミット済み。
+実際の適用（`pnpm db:deploy` + `pnpm db:seed`）は、Supabaseへ到達できる環境（開発者のローカル環境、
+またはVercelのビルドプロセス）で行う。Vercel側はProject Settings → Build CommandをOverrideし、
+`pnpm prisma migrate deploy && pnpm db:seed && pnpm run build` に変更することで、デプロイのたびに
+自動でマイグレーション・シードが適用される（`db:seed`はupsertなので冪等）。
+
 ---
 
 ## 5. Database Schema（Prisma / PostgreSQL）

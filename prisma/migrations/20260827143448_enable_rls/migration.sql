@@ -1,11 +1,6 @@
 -- Data Engineer Quest — Row Level Security policies (Full Mode)
 --
--- 適用手順（実際のSupabaseプロジェクトに接続できるようになってから実行する）:
---   1. pnpm prisma migrate dev --name init            (schema.prismaからテーブルを作成)
---   2. pnpm prisma migrate dev --name enable_rls --create-only
---      で作られる空のmigration.sqlに、このファイルの内容を貼り付ける
---   3. pnpm prisma migrate dev                         (RLSマイグレーションを適用)
---   4. 本番へは pnpm db:deploy で反映する
+-- pnpm db:migrate（開発）/ pnpm db:deploy（本番）で他のマイグレーションと同様に適用される。
 --
 -- 重要な設計上の注意（docs/architecture.md参照）:
 -- このアプリはSupabaseのData API(PostgREST)をブラウザから直接叩く構成を取っていない。

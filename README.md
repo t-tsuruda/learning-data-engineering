@@ -41,20 +41,31 @@ pnpm db:studio        # Prisma Studio
 
 ## Full Modeへの切り替え
 
+マイグレーション（`prisma/migrations/`）は、実DB接続なしで生成できる`prisma migrate diff`を使って
+あらかじめリポジトリに含めてあります（テーブル作成 + RLSポリシーの2ファイル）。
+そのため、Supabase側でSQLを手動実行する必要はなく、`pnpm db:deploy`（`prisma migrate deploy`）を
+一度実行するだけで反映されます。
+
+> **開発コンテナからはSupabaseへの接続がネットワークポリシーでブロックされているため、
+> 以下の手順はこのサンドボックスの外（あなたのローカル環境、またはVercelのビルド時）で実行する必要があります。**
+
 1. Supabaseプロジェクトを作成し、Pooler接続文字列（`DATABASE_URL`）と直接接続文字列（`DIRECT_URL`）、API情報（`NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`）を取得する
 2. `.env.example` を `.env.local` にコピーし、値を設定する
-3. `pnpm prisma migrate dev --name init` でテーブルを作成する
-4. `pnpm prisma migrate dev --name enable_rls --create-only` で空のマイグレーションを作り、`prisma/rls-policies.sql` の内容をそこに貼り付けてから `pnpm prisma migrate dev` で適用する（RLSポリシー）
-5. `pnpm db:seed` でskills/achievementsのマスタデータを投入する
-6. Supabaseダッシュボード → Authentication → Email Templates で、Confirm signup / Reset password のリンクを
+3. `pnpm db:deploy && pnpm db:seed` でテーブル作成・RLS適用・マスタデータ投入を行う
+4. Supabaseダッシュボード → Authentication → Email Templates で、Confirm signup / Reset password のリンクを
    `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type={{ .Type }}` に変更する
    （デフォルトのままだとSupabaseホスト側のURLに飛んでしまうため）
-7. AI Mentorを実LLM（Gemini）で動かす場合は `AI_MENTOR_MOCK=false` と `GEMINI_API_KEY` を設定する
-8. `pnpm dev` で起動し、`/signup` からアカウント作成 → 確認メールのリンクを開く → ログインして動作確認する
+5. AI Mentorを実LLM（Gemini）で動かす場合は `AI_MENTOR_MOCK=false` と `GEMINI_API_KEY` を設定する
+6. `pnpm dev` で起動し、`/signup` からアカウント作成 → 確認メールのリンクを開く → ログインして動作確認する
+
+**Vercelにデプロイする場合**は、Project Settings → Build & Development Settings → Build Command を
+`pnpm prisma migrate deploy && pnpm db:seed && pnpm run build` に上書きしてください。これで初回デプロイ時に
+自動でマイグレーション・シードが実行されます（`db:seed`はupsertなので複数回実行しても安全です）。
 
 詳細な設計は `docs/architecture.md` §4, §8 を参照してください。認証（サインアップ・確認メール・パスワードリセット・ログアウト）は
 `app/(auth)/`・`app/auth/`・`lib/auth/` に、DB永続化は `lib/db/prisma-repository.ts` + `app/(app)/actions.ts` に実装済みです。
-実際のSupabaseプロジェクトが無い状態ではこれらのコードは動作確認できていないため、接続後に一通りの動作確認（サインアップ→Quest完了→ログアウト→再ログインで進捗が残っているか）を行ってください。
+このセッションからはSupabaseへ接続できずローカルでの動作確認ができていないため、接続後に一通りの動作確認
+（サインアップ→Quest完了→ログアウト→再ログインで進捗が残っているか）を行ってください。
 
 ## ディレクトリ構成
 

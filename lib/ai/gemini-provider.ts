@@ -11,7 +11,7 @@ export class GeminiAiMentorProvider implements AiMentorProvider {
   private client: GoogleGenerativeAI;
   private modelName: string;
 
-  constructor(apiKey: string, modelName = "gemini-2.0-flash") {
+  constructor(apiKey: string, modelName = "gemini-3.6-flash") {
     this.client = new GoogleGenerativeAI(apiKey);
     this.modelName = modelName;
   }
