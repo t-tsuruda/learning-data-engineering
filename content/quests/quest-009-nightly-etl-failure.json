@@ -1,0 +1,40 @@
+{
+  "id": "quest-009-nightly-etl-failure",
+  "title": "夜間ETLジョブが落ち続けている",
+  "category": "pipeline-debugging",
+  "difficulty": "hard",
+  "platform": "duckdb",
+  "skills": ["pipeline-debugging", "job-logs"],
+  "estimatedMinutes": 15,
+  "type": "investigation",
+  "story": {
+    "context": "毎晩自動実行されている nightly_sales_etl ジョブが、ここ数日エラーで落ち続けています。オンコール担当のあなたに調査依頼が来ました。",
+    "request": "#data-platform-oncall\n\nManager:\nnightly_sales_etl が3日連続で失敗してます。今日中に原因だけでも分かりますか？job_runs テーブルに実行履歴が残っているはずです。"
+  },
+  "mission": "job_runs テーブルを調査し、nightly_sales_etl ジョブがいつから失敗し始めたのか、そしてどんなエラーが発生しているのかを特定してください。失敗した実行(status = 'failed')について、実行日・実行時間・エラーメッセージを日付順に一覧表示してください。",
+  "dataset": {
+    "tables": [
+      {
+        "name": "job_runs",
+        "seedSql": "CREATE TABLE job_runs (run_id INTEGER, job_name VARCHAR, run_date DATE, duration_seconds INTEGER, status VARCHAR, error_message VARCHAR); INSERT INTO job_runs VALUES (1, 'nightly_sales_etl', '2026-08-20', 145, 'success', NULL), (2, 'nightly_sales_etl', '2026-08-21', 151, 'success', NULL), (3, 'nightly_sales_etl', '2026-08-22', 149, 'success', NULL), (4, 'nightly_sales_etl', '2026-08-23', 12, 'failed', 'column \"discount_code\" does not exist'), (5, 'nightly_sales_etl', '2026-08-24', 11, 'failed', 'column \"discount_code\" does not exist'), (6, 'nightly_sales_etl', '2026-08-25', 10, 'failed', 'column \"discount_code\" does not exist');"
+      }
+    ]
+  },
+  "starterSql": "SELECT * FROM job_runs ORDER BY run_date;",
+  "hints": [
+    { "level": 1, "text": "まずjob_runs全体を実行日順に見て、成功(success)と失敗(failed)がどこで切り替わっているか確認しましょう。" },
+    { "level": 2, "text": "失敗したrunのduration_secondsにも注目してみてください。成功していた時と比べて極端に短くなっていませんか？何を意味していると思いますか？" },
+    { "level": 3, "text": "WHERE status = 'failed' で絞り込み、error_messageカラムの中身を確認してみましょう。" }
+  ],
+  "answer": {
+    "explanation": "8/23の実行から、'column \"discount_code\" does not exist' というエラーで失敗し始めています。失敗時のduration_secondsが10〜12秒と極端に短いことから、ジョブが処理の早い段階（クエリのコンパイル/実行開始直後）で落ちていることが分かります。これは、上流テーブルのスキーマが変更され（discount_codeというカラムが削除またはリネームされた）、ETLのSQLがそれに追随できていない典型的なパターンです。次のアクションは、上流テーブルの変更履歴を確認し、ETLのクエリを新しいスキーマに合わせて修正することです。",
+    "sql": "SELECT run_date, duration_seconds, error_message FROM job_runs WHERE status = 'failed' ORDER BY run_date;"
+  },
+  "successCriteria": {
+    "type": "sql-result-match",
+    "expectedSql": "SELECT run_date, duration_seconds, error_message FROM job_runs WHERE status = 'failed' ORDER BY run_date;",
+    "orderMatters": true
+  },
+  "reflectionPrompt": "上流テーブルのスキーマ変更によってパイプラインが壊れることを防ぐには、どんな仕組みがあれば良かったと思いますか？",
+  "xp": { "base": 180 }
+}

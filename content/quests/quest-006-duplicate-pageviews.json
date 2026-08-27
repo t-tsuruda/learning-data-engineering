@@ -1,0 +1,40 @@
+{
+  "id": "quest-006-duplicate-pageviews",
+  "title": "ページビュー数が異常に多い",
+  "category": "data-investigation",
+  "difficulty": "normal",
+  "platform": "duckdb",
+  "skills": ["sql-select", "data-investigation", "sql-aggregation"],
+  "estimatedMinutes": 12,
+  "type": "investigation",
+  "story": {
+    "context": "Webアクセス解析を担当するAnalyticsチームから相談が来ました。トラッキングシステムはネットワークエラー時に自動リトライする仕様になっています。",
+    "request": "#analytics-team\n\nAnalytics Lead:\n先週から home ページのビュー数が急に増えていて、他の指標と辻褄が合いません。page_views テーブル、ちょっと見てもらえますか？"
+  },
+  "mission": "page_views テーブルを調査し、同じイベントが重複して記録されていないか確認してください。重複を取り除いた上で、ページ（page）ごとの正しいビュー数（view_count）を算出してください。",
+  "dataset": {
+    "tables": [
+      {
+        "name": "page_views",
+        "seedSql": "CREATE TABLE page_views (event_id INTEGER, user_id INTEGER, page VARCHAR); INSERT INTO page_views VALUES (1, 101, 'home'), (2, 101, 'product'), (3, 102, 'home'), (1, 101, 'home'), (4, 103, 'home'), (5, 103, 'checkout'), (2, 101, 'product');"
+      }
+    ]
+  },
+  "starterSql": "SELECT * FROM page_views ORDER BY event_id;",
+  "hints": [
+    { "level": 1, "text": "まず page_views の中身を全部見てみましょう。event_id に注目してください。同じevent_idの行はありますか？" },
+    { "level": 2, "text": "トラッキングシステムはネットワークエラー時に自動リトライすると書かれています。リトライすると、同じイベントが2回記録されることがあります。" },
+    { "level": 3, "text": "単純に COUNT(*) で数えると重複分も数えてしまいます。COUNT(DISTINCT event_id) を使うと、ユニークなイベントだけを数えられます。" }
+  ],
+  "answer": {
+    "explanation": "event_id = 1 と event_id = 2 がそれぞれ2回ずつ記録されており、これがリトライによる重複でした。単純に COUNT(*) で集計すると重複分も数えてしまい、home ページのビュー数が実際より多く見えます。COUNT(DISTINCT event_id) を使うことで、ユニークなイベントだけを正しくカウントできます。実務では、こうした重複はUpsert(ON CONFLICT)やユニーク制約、あるいはdbtのdeduplicationパターンで防ぐことが多いです。",
+    "sql": "SELECT page, COUNT(DISTINCT event_id) AS view_count FROM page_views GROUP BY page ORDER BY page;"
+  },
+  "successCriteria": {
+    "type": "sql-result-match",
+    "expectedSql": "SELECT page, COUNT(DISTINCT event_id) AS view_count FROM page_views GROUP BY page ORDER BY page;",
+    "orderMatters": true
+  },
+  "reflectionPrompt": "今回のような重複が発生しないようにするには、データ収集の仕組み自体をどう設計すればよいでしょうか？",
+  "xp": { "base": 130 }
+}

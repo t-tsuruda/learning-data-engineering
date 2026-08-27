@@ -1,0 +1,40 @@
+{
+  "id": "quest-005-top-product-per-category",
+  "title": "カテゴリごとの売れ筋No.1を特定せよ",
+  "category": "sql-fundamentals",
+  "difficulty": "hard",
+  "platform": "duckdb",
+  "skills": ["sql-window-functions"],
+  "estimatedMinutes": 15,
+  "type": "sql-write",
+  "story": {
+    "context": "商品企画チームが、各カテゴリで最も売れている商品（売上金額ベース）を知りたがっています。単純なGROUP BYでは「カテゴリごとの中の1位」を取り出すのは難しそうです。",
+    "request": "#product-planning\n\nProduct Lead:\n各カテゴリのNo.1商品だけをリストアップしたいです。カテゴリごとに1商品ずつでお願いします。"
+  },
+  "mission": "products テーブルから、カテゴリ（category）ごとに売上（revenue）が最も高い商品を1件ずつ抽出してください。カテゴリ名・商品名・売上を返してください。",
+  "dataset": {
+    "tables": [
+      {
+        "name": "products",
+        "seedSql": "CREATE TABLE products (product_id INTEGER, category VARCHAR, name VARCHAR, revenue INTEGER); INSERT INTO products VALUES (1, 'electronics', 'Wireless Earbuds', 42000), (2, 'electronics', 'USB-C Hub', 18000), (3, 'electronics', '4K Monitor', 61000), (4, 'home', 'Coffee Maker', 23000), (5, 'home', 'Desk Lamp', 8900), (6, 'apparel', 'Rain Jacket', 15000), (7, 'apparel', 'Running Shoes', 27000);"
+      }
+    ]
+  },
+  "starterSql": "SELECT * FROM products;",
+  "hints": [
+    { "level": 1, "text": "GROUP BYで『カテゴリごとの最大値』は出せますが、その商品の名前まで一緒に取るのは単純な集計では難しいです。他の方法を考えてみましょう。" },
+    { "level": 2, "text": "ウィンドウ関数 ROW_NUMBER() OVER (PARTITION BY category ORDER BY revenue DESC) を使うと、カテゴリごとに売上順の順位をつけられます。" },
+    { "level": 3, "text": "サブクエリでROW_NUMBERを計算し、外側のクエリで rn = 1 の行だけを WHERE で絞り込みます。" }
+  ],
+  "answer": {
+    "explanation": "ROW_NUMBER() OVER (PARTITION BY category ORDER BY revenue DESC) を使うことで、カテゴリ内で売上が高い順に1,2,3...という連番を振れます。これをサブクエリにして、外側でrn = 1の行だけを抽出すれば『カテゴリごとの1位』が得られます。GROUP BY + MAX() だけでは同じ行から他のカラム(name)を一緒に取り出すのが難しく、こうした「グループ内順位」を求める場面ではウィンドウ関数が強力です。",
+    "sql": "SELECT category, name, revenue FROM (SELECT category, name, revenue, ROW_NUMBER() OVER (PARTITION BY category ORDER BY revenue DESC) AS rn FROM products) ranked WHERE rn = 1 ORDER BY category;"
+  },
+  "successCriteria": {
+    "type": "sql-result-match",
+    "expectedSql": "SELECT category, name, revenue FROM (SELECT category, name, revenue, ROW_NUMBER() OVER (PARTITION BY category ORDER BY revenue DESC) AS rn FROM products) ranked WHERE rn = 1 ORDER BY category;",
+    "orderMatters": true
+  },
+  "reflectionPrompt": "GROUP BY + MAX(revenue) だけでこの問題を解こうとすると、何が難しいでしょうか？",
+  "xp": { "base": 150 }
+}

@@ -1,0 +1,40 @@
+{
+  "id": "quest-004-category-revenue",
+  "title": "カテゴリ別売上ランキングを作れ",
+  "category": "sql-fundamentals",
+  "difficulty": "normal",
+  "platform": "duckdb",
+  "skills": ["sql-group-by", "sql-aggregation"],
+  "estimatedMinutes": 10,
+  "type": "sql-write",
+  "story": {
+    "context": "ECサイトの商品カテゴリ別のパフォーマンスを、マーケティングチームが知りたがっています。",
+    "request": "#marketing-requests\n\nMarketing Lead:\n来月のキャンペーン企画のために、商品カテゴリごとの売上合計と販売件数を、売上が多い順に見たいです。"
+  },
+  "mission": "order_items テーブルから、カテゴリ（category）ごとの合計売上（total_revenue）と注文件数（order_count）を集計し、合計売上の多い順に並べてください。",
+  "dataset": {
+    "tables": [
+      {
+        "name": "order_items",
+        "seedSql": "CREATE TABLE order_items (item_id INTEGER, category VARCHAR, price INTEGER); INSERT INTO order_items VALUES (1, 'electronics', 42000), (2, 'electronics', 18000), (3, 'home', 6500), (4, 'electronics', 25000), (5, 'home', 8900), (6, 'apparel', 3200), (7, 'apparel', 4100), (8, 'home', 7200), (9, 'apparel', 2900);"
+      }
+    ]
+  },
+  "starterSql": "SELECT * FROM order_items;",
+  "hints": [
+    { "level": 1, "text": "カテゴリごとにまとめる、という操作はGROUP BYで実現できます。" },
+    { "level": 2, "text": "合計売上はSUM(price)、注文件数はCOUNT(*)で計算できます。" },
+    { "level": 3, "text": "ORDER BY total_revenue DESC で、合計売上が多い順に並び替えられます。" }
+  ],
+  "answer": {
+    "explanation": "GROUP BY category でカテゴリごとにまとめ、SUM(price)で売上合計、COUNT(*)で件数を出し、ORDER BY ... DESC で降順に並べます。集計とランキングの組み合わせは、ダッシュボードやレポート作成で非常によく使うパターンです。",
+    "sql": "SELECT category, SUM(price) AS total_revenue, COUNT(*) AS order_count FROM order_items GROUP BY category ORDER BY total_revenue DESC;"
+  },
+  "successCriteria": {
+    "type": "sql-result-match",
+    "expectedSql": "SELECT category, SUM(price) AS total_revenue, COUNT(*) AS order_count FROM order_items GROUP BY category ORDER BY total_revenue DESC;",
+    "orderMatters": true
+  },
+  "reflectionPrompt": "件数(order_count)ではなく売上合計(total_revenue)でランキングすることに、どんな意味の違いがあるでしょうか？",
+  "xp": { "base": 120 }
+}

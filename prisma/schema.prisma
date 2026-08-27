@@ -1,0 +1,183 @@
+// Data Engineer Quest — Prisma Schema (Full Mode / Supabase Postgres)
+//
+// このスキーマはFull Mode（Supabaseプロジェクト接続後）で使用する。
+// Demo Modeではこのスキーマは使用されず、クライアント側のlocalStorage永続化
+// （lib/domain配下の純粋関数 + zustand persist）で動作する。詳細はdocs/architecture.md §4。
+//
+// 命名規則: テーブル名はsnake_case（@@map）、Prismaモデル名はPascalCase。
+// 全モデル共通: id(uuid) PK, createdAt/updatedAt。RLSは prisma/migrations の
+// SQLマイグレーションで別途適用する（Prisma Migrateではポリシーを直接書けないため）。
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Profile ---------------------------------------------------------------
+// id は Supabase Auth の auth.users.id と同じ値を使う（アプリ側では作成しない。
+// Supabase Auth の on-signup トリガーもしくはServer Action初回ログイン時に作成）。
+model Profile {
+  id           String    @id @db.Uuid
+  displayName  String    @map("display_name")
+  careerRank   String    @default("rookie") @map("career_rank")
+  onboardedAt  DateTime? @map("onboarded_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  userSkills        UserSkill[]
+  questAttempts     QuestAttempt[]
+  userAchievements  UserAchievement[]
+  streak            Streak?
+  dailyQuests       DailyQuest[]
+  aiConversations   AiConversation[]
+  confidenceRecords ConfidenceRecord[]
+
+  @@map("profiles")
+}
+
+// --- Skill Tree --------------------------------------------------------------
+model Skill {
+  id       String  @id // slug, e.g. "sql-join"
+  name     String
+  category String // sql | data-modeling | etl | spark | databricks | architecture
+  parentId String? @map("parent_id")
+  parent   Skill?  @relation("SkillTree", fields: [parentId], references: [id])
+  children Skill[] @relation("SkillTree")
+
+  userSkills        UserSkill[]
+  confidenceRecords ConfidenceRecord[]
+
+  @@map("skills")
+}
+
+model UserSkill {
+  id            String   @id @default(uuid()) @db.Uuid
+  profileId     String   @map("profile_id") @db.Uuid
+  profile       Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  skillId       String   @map("skill_id")
+  skill         Skill    @relation(fields: [skillId], references: [id])
+  masteryScore  Int      @default(0) @map("mastery_score") // 0-100
+  firstTryCount Int      @default(0) @map("first_try_count")
+  hintUsedCount Int      @default(0) @map("hint_used_count")
+  retryCount    Int      @default(0) @map("retry_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([profileId, skillId])
+  @@index([profileId])
+  @@map("user_skills")
+}
+
+// --- Quest Attempts ----------------------------------------------------------
+model QuestAttempt {
+  id               String    @id @default(uuid()) @db.Uuid
+  profileId        String    @map("profile_id") @db.Uuid
+  profile          Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  questId          String    @map("quest_id") // content/quests/*.json の id
+  status           String    @default("in_progress") // in_progress | cleared | abandoned
+  attemptCount     Int       @default(0) @map("attempt_count")
+  hintsUsed        Int       @default(0) @map("hints_used")
+  confidenceBefore Int?      @map("confidence_before") // 1-5
+  confidenceAfter  Int?      @map("confidence_after") // 1-5
+  idempotencyKey   String    @unique @map("idempotency_key")
+  startedAt        DateTime  @default(now()) @map("started_at")
+  completedAt      DateTime? @map("completed_at")
+
+  hints QuestHint[]
+
+  @@index([profileId])
+  @@index([questId])
+  @@map("quest_attempts")
+}
+
+model QuestHint {
+  id         String       @id @default(uuid()) @db.Uuid
+  attemptId  String       @map("attempt_id") @db.Uuid
+  attempt    QuestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  hintLevel  Int          @map("hint_level") // 1,2,3 / 4=answer
+  revealedAt DateTime     @default(now()) @map("revealed_at")
+
+  @@index([attemptId])
+  @@map("quest_hints")
+}
+
+// --- Achievements --------------------------------------------------------------
+model Achievement {
+  id          String @id // slug
+  title       String
+  description String
+  icon        String
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid()) @db.Uuid
+  profileId     String      @map("profile_id") @db.Uuid
+  profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  achievementId String      @map("achievement_id")
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  achievedAt    DateTime    @default(now()) @map("achieved_at")
+
+  @@unique([profileId, achievementId])
+  @@map("user_achievements")
+}
+
+// --- Streak / Daily Quest（JST基準の日付判定はlib/domain/datetime.tsで実施） -----
+model Streak {
+  profileId      String    @id @map("profile_id") @db.Uuid
+  profile        Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  currentStreak  Int       @default(0) @map("current_streak")
+  longestStreak  Int       @default(0) @map("longest_streak")
+  lastActiveDate DateTime? @map("last_active_date") @db.Date // JST基準の日付
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("streaks")
+}
+
+model DailyQuest {
+  id        String   @id @default(uuid()) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date // JST基準
+  questId   String   @map("quest_id")
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([profileId, date])
+  @@map("daily_quests")
+}
+
+// --- AI Mentor -----------------------------------------------------------------
+model AiConversation {
+  id        String   @id @default(uuid()) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  questId   String?  @map("quest_id")
+  messages  Json // [{role, content, hintLevel?, createdAt}]
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([profileId])
+  @@map("ai_conversations")
+}
+
+// --- Confidence System -----------------------------------------------------
+model ConfidenceRecord {
+  id         String   @id @default(uuid()) @db.Uuid
+  profileId  String   @map("profile_id") @db.Uuid
+  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  skillId    String   @map("skill_id")
+  skill      Skill    @relation(fields: [skillId], references: [id])
+  questId    String?  @map("quest_id")
+  level      Int // 1-5 (😰😕🙂😎🔥)
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  @@index([profileId, skillId])
+  @@map("confidence_records")
+}
