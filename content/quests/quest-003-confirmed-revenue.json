@@ -1,0 +1,40 @@
+{
+  "id": "quest-003-confirmed-revenue",
+  "title": "確定売上だけを抽出せよ",
+  "category": "sql-fundamentals",
+  "difficulty": "easy",
+  "platform": "duckdb",
+  "skills": ["sql-where", "sql-null-handling"],
+  "estimatedMinutes": 8,
+  "type": "sql-fix",
+  "story": {
+    "context": "経理チームが月次の売上レポートを作ろうとしています。orders テーブルには、まだ処理中の注文やキャンセル済みの注文も混ざっています。",
+    "request": "#finance-requests\n\nFinance Team:\n先月の『確定した』売上だけの合計を知りたいです。キャンセルとか、まだ処理中のやつは含めないでください。前任者が書いたSQLが残ってたので使ってみたんですが、なんか数字が合わない気がします……"
+  },
+  "mission": "orders テーブルの status カラムには 'completed'（確定）、'cancelled'（キャンセル）、そして未確定の注文にはNULLが入っています。用意されたSQLは status <> 'cancelled' でキャンセルを除外しようとしていますが、これだと確定済みの売上だけにはなりません。status が 'completed' の注文だけを正しく抽出するSQLに直してください。",
+  "dataset": {
+    "tables": [
+      {
+        "name": "orders",
+        "seedSql": "CREATE TABLE orders (order_id INTEGER, amount INTEGER, status VARCHAR); INSERT INTO orders VALUES (1, 12000, 'completed'), (2, 8000, 'cancelled'), (3, 15000, 'completed'), (4, 5000, NULL), (5, 9000, 'completed'), (6, 3000, NULL);"
+      }
+    ]
+  },
+  "starterSql": "SELECT SUM(amount) AS total_amount FROM orders WHERE status <> 'cancelled';",
+  "hints": [
+    { "level": 1, "text": "今のSQLは『キャンセルではない』注文を集めていますが、それは『確定した』注文と同じ意味でしょうか？" },
+    { "level": 2, "text": "status がNULLの行（まだ処理中）は、'cancelled'とは一致しませんが、'completed'でもありません。<> 'cancelled' の条件だとどうなるか考えてみましょう。" },
+    { "level": 3, "text": "『確定している』ことを直接表す条件は status = 'completed' です。WHERE句をこれに書き換えてみましょう。" }
+  ],
+  "answer": {
+    "explanation": "WHERE status <> 'cancelled' は『キャンセル以外』を意味し、status が NULL（未確定）の行も条件を満たしてしまいます（SQLではNULLとの比較は基本的に不明(UNKNOWN)になりますが、多くのDBでNULL行は<>比較の結果に含まれず除外される一方、意図としては『未確定』も除きたいのに紛れ込みやすい典型的なミスです）。確実に『確定済みのみ』を取得するには status = 'completed' と明示的に書く必要があります。",
+    "sql": "SELECT SUM(amount) AS total_amount FROM orders WHERE status = 'completed';"
+  },
+  "successCriteria": {
+    "type": "sql-result-match",
+    "expectedSql": "SELECT SUM(amount) AS total_amount FROM orders WHERE status = 'completed';",
+    "orderMatters": false
+  },
+  "reflectionPrompt": "「NOT ○○」という否定条件で書くのではなく、「= 確定の値」と直接条件を書いた方が安全なのはなぜでしょうか？",
+  "xp": { "base": 100 }
+}

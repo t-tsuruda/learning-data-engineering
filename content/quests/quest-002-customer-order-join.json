@@ -1,0 +1,40 @@
+{
+  "id": "quest-002-customer-order-join",
+  "title": "顧客ごとの注文金額を集計せよ",
+  "category": "sql-fundamentals",
+  "difficulty": "easy",
+  "platform": "duckdb",
+  "skills": ["sql-join", "sql-group-by"],
+  "estimatedMinutes": 10,
+  "type": "sql-write",
+  "story": {
+    "context": "EC事業のSales部門から新しい依頼が届きました。顧客データ(customers)と注文データ(orders)は別々のテーブルに分かれています。",
+    "request": "#sales-requests\n\nSales Team:\n来週の会議までに、顧客ごとの合計注文金額を知りたいです。customersテーブルとordersテーブル、両方見ればできますよね？"
+  },
+  "mission": "customers テーブルと orders テーブルを customer_id で結合し、顧客名（name）ごとの合計注文金額（total_amount）を算出してください。",
+  "dataset": {
+    "tables": [
+      {
+        "name": "customers_orders",
+        "seedSql": "CREATE TABLE customers (customer_id INTEGER, name VARCHAR); INSERT INTO customers VALUES (1, 'Aoki Retail'), (2, 'Blue Sky Store'), (3, 'Cedar Mart'); CREATE TABLE orders (order_id INTEGER, customer_id INTEGER, amount INTEGER); INSERT INTO orders VALUES (101, 1, 5000), (102, 1, 3200), (103, 2, 7400), (104, 3, 1200), (105, 2, 2100);"
+      }
+    ]
+  },
+  "starterSql": "SELECT * FROM customers;\n-- SELECT * FROM orders;",
+  "hints": [
+    { "level": 1, "text": "customers と orders、それぞれのテーブルにどんなカラムがあるか確認しましょう。共通しているカラムはどれですか？" },
+    { "level": 2, "text": "customer_id を使って2つのテーブルをJOINできます。INNER JOINでcustomersとordersをつなげてみましょう。" },
+    { "level": 3, "text": "顧客ごとに合計するには GROUP BY name と SUM(amount) を組み合わせます。" }
+  ],
+  "answer": {
+    "explanation": "customers と orders を customer_id でJOINし、name でGROUP BYしてamountをSUMすることで、顧客ごとの合計注文金額が得られます。実務では、この後さらに『注文が1件もない顧客』を含めるべきかどうか（LEFT JOINにするかどうか）を、依頼者の意図に応じて判断する必要があります。",
+    "sql": "SELECT c.name AS name, SUM(o.amount) AS total_amount FROM customers c JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.name ORDER BY c.name;"
+  },
+  "successCriteria": {
+    "type": "sql-result-match",
+    "expectedSql": "SELECT c.name AS name, SUM(o.amount) AS total_amount FROM customers c JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.name ORDER BY c.name;",
+    "orderMatters": false
+  },
+  "reflectionPrompt": "もし customers の中に、まだ一度も注文していない顧客がいたら、今回のINNER JOINの結果には表示されるでしょうか？なぜそうなるか説明してください。",
+  "xp": { "base": 100 }
+}

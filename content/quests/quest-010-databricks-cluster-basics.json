@@ -1,0 +1,35 @@
+{
+  "id": "quest-010-databricks-cluster-basics",
+  "title": "Notebookを開いたのにクエリが動かない",
+  "category": "databricks-intro",
+  "difficulty": "easy",
+  "platform": "duckdb",
+  "skills": ["databricks-workspace"],
+  "estimatedMinutes": 8,
+  "type": "decision",
+  "story": {
+    "context": "あなたは今日からDatabricksのワークスペースを使い始めました。新しいNotebookを開き、簡単なSQLセルを実行しようとしましたが、何も起こりません。画面上部には何かを選択するよう促すメッセージが出ています。",
+    "request": "#databricks-onboarding\n\n先輩Engineer:\nNotebook開いただけだと、まだ動かないよ。実行するには、もう1つ準備が必要。"
+  },
+  "mission": "Databricksで Notebook のセルを実行する前に、まず何が必要でしょうか？",
+  "options": [
+    { "id": "a", "label": "何も準備せず、Notebookを開けばすぐにコードを実行できる" },
+    { "id": "b", "label": "Notebookをアタッチするための、起動しているCluster（またはSQL Warehouse）が必要" },
+    { "id": "c", "label": "実行前に、Unity Catalogへ全テーブルを手動で再登録する必要がある" },
+    { "id": "d", "label": "ローカルPCに別途Pythonをインストールする必要がある" }
+  ],
+  "hints": [
+    { "level": 1, "text": "Databricksのnotebookは、それ自体は計算リソースを持っていません。コードを『書く場所』です。" },
+    { "level": 2, "text": "コードを実際に実行するには、計算を行うための何らかのリソースが必要です。" },
+    { "level": 3, "text": "Databricksではこの計算リソースを『Cluster』（汎用）や『SQL Warehouse』（SQL実行専用）と呼びます。Notebookはこれらにアタッチしてから実行します。" }
+  ],
+  "answer": {
+    "explanation": "Databricksのnotebookはコードを書く場所であり、実行そのものはCluster（汎用の計算リソース）やSQL Warehouse（SQL実行に特化した計算リソース）が担います。Notebookを起動中のClusterにアタッチして初めて、セルを実行できるようになります。Clusterの起動には数分かかることがあるため、実務ではあらかじめ起動しておいたり、起動が高速なServerless構成を使ったりする工夫がされます。"
+  },
+  "successCriteria": {
+    "type": "choice",
+    "correctOptionIds": ["b"]
+  },
+  "reflectionPrompt": "Clusterを使い終わった後も起動したままにしておくと、どんな問題が起きると思いますか？",
+  "xp": { "base": 80 }
+}

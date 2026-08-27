@@ -1,0 +1,40 @@
+{
+  "id": "quest-001-missing-sales-day",
+  "title": "Sales Dashboardがおかしい",
+  "category": "data-investigation",
+  "difficulty": "tutorial",
+  "platform": "duckdb",
+  "skills": ["sql-select", "data-investigation"],
+  "estimatedMinutes": 8,
+  "type": "investigation",
+  "story": {
+    "context": "あなたはData Platform Teamに配属されたばかりの新人Data Engineer。毎朝更新されるSales Dashboardを、Business Teamが毎日チェックしています。",
+    "request": "#sales-dashboard\n\nSales Manager:\nおはようございます。今日のダッシュボード見たんですが、昨日より売上が大きく減ってるように見えます……本当に売上が減ったんでしょうか？念のため確認してもらえますか？"
+  },
+  "mission": "ダッシュボードが参照している sales_daily テーブルの中身を、日付順にすべて確認してください。売上が「減った」ように見える原因が、本当に売上減少なのか、それとも別の理由なのかを調べましょう。",
+  "dataset": {
+    "tables": [
+      {
+        "name": "sales_daily",
+        "seedSql": "CREATE TABLE sales_daily (sale_date DATE, revenue INTEGER); INSERT INTO sales_daily VALUES ('2026-08-19', 118000), ('2026-08-20', 124500), ('2026-08-21', 131000), ('2026-08-22', 127800), ('2026-08-23', 139200), ('2026-08-24', 133400), ('2026-08-26', 8900);"
+      }
+    ]
+  },
+  "starterSql": "SELECT * FROM sales_daily;",
+  "hints": [
+    { "level": 1, "text": "まずはダッシュボードの元になっている sales_daily テーブルの中身を、全部そのまま見てみましょう。" },
+    { "level": 2, "text": "sale_date を古い順に並べ替えて一覧表示してみてください。ORDER BY が使えます。" },
+    { "level": 3, "text": "日付を1日ずつ数えながら確認してみましょう。8/24の次に来ている日付はいつですか？連続していますか？" }
+  ],
+  "answer": {
+    "explanation": "SELECT sale_date, revenue FROM sales_daily ORDER BY sale_date; を実行すると、8/25のデータが存在しないことに気づきます。8/26の売上8,900円という数字だけを見ると激減したように見えますが、実際には8/26分のデータ収集がまだ完了していないだけです（1日の途中で集計されている状態）。8/25分は何らかの理由でパイプラインが動かず、そもそもレコードが存在しません。「売上が減った」のではなく「データが欠けている／未完了」だった、というのがこのQuestの発見です。",
+    "sql": "SELECT sale_date, revenue FROM sales_daily ORDER BY sale_date;"
+  },
+  "successCriteria": {
+    "type": "sql-result-match",
+    "expectedSql": "SELECT sale_date, revenue FROM sales_daily ORDER BY sale_date;",
+    "orderMatters": true
+  },
+  "reflectionPrompt": "なぜ「売上が減った」とすぐに結論づけず、まずデータそのものを確認することが重要なのでしょうか？",
+  "xp": { "base": 100 }
+}

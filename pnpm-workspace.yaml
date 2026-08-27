@@ -1,0 +1,12 @@
+allowBuilds:
+  '@prisma/engines': true
+  duckdb: true
+  esbuild: true
+  msgpackr-extract: true
+  prisma: true
+  sharp: false
+  unrs-resolver: false
+  workerd: true
+minimumReleaseAgeExclude:
+  - '@rolldown/binding-freebsd-x64@1.2.6'
+  - '@rolldown/binding-openharmony-arm64@1.2.6'
